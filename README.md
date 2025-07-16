@@ -2,6 +2,10 @@
 
 This project is a full-stack, agentic AI-powered tool that generates Entity-Relationship Diagrams (ERDs) from business requirements using LLMs via LangGraph and Groq. It supports enhanced automation, data dictionary processing, and optional fantasy entity generation to assist data architects and developers.
 
+**Landing page**
+<img width="1952" height="1189" alt="image" src="https://github.com/user-attachments/assets/f4664406-45e6-4ad1-b238-a43f13836982" />
+
+**After Execution**
 <img width="2529" height="3523" alt="image" src="https://github.com/user-attachments/assets/a14b07ad-5057-4b92-8d0a-46623aeed39e" />
 ---
 
