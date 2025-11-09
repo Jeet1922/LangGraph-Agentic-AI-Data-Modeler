@@ -391,7 +391,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { ChevronDown, Upload, Loader2, FileText, Database, Sparkles, BarChart3, AlertCircle } from "lucide-react"
+import { ChevronDown, Upload, Loader2, FileText, Database, Sparkles, BarChart3, AlertCircle, Code, Download } from "lucide-react"
 import ERDDiagram from "./erd-diagram"
 
 // Type definitions
@@ -412,8 +412,10 @@ interface Entity {
 
 interface Relationship {
   type: string
-  from: string
-  to: string
+  from?: string
+  to?: string
+  from_entity?: string
+  to_entity?: string
   fromColumn?: string
   toColumn?: string
 }
@@ -430,19 +432,46 @@ interface APIResponse {
 }
 
 // Utility function to generate Mermaid ERD syntax
+// function generateMermaid(erd_json: ERDData | undefined): string {
+//   if (!erd_json || !erd_json?.entities) return ""
+
+//   const lines = ["erDiagram"]
+
+//   // Add relationships
+//   erd_json.relationships?.forEach((r) => {
+//     const rel = r.type === "one-to-many" ? "||--o{" : "||--||"
+//     lines.push(`    ${r.from.toUpperCase()} ${rel} ${r.to.toUpperCase()} : relates`)
+//   })
+
+//   // Add entities
+//   ;(erd_json.entities || []).forEach((entity) => {
+//     lines.push(`    ${entity.name.toUpperCase()} {`)
+//     const attrs = entity.attributes || entity.columns || []
+//     attrs.forEach((attr) => {
+//       const keyIndicator = attr.primaryKey ? " PK" : attr.foreignKey ? " FK" : ""
+//       lines.push(`        ${attr.type} ${attr.name}${keyIndicator}`)
+//     })
+//     lines.push("    }")
+//   })
+
+//   return lines.join("\n")
+// }
+
 function generateMermaid(erd_json: ERDData | undefined): string {
   if (!erd_json || !erd_json?.entities) return ""
 
   const lines = ["erDiagram"]
 
-  // Add relationships
+  // Fix: Safely access from_entity / to_entity
   erd_json.relationships?.forEach((r) => {
     const rel = r.type === "one-to-many" ? "||--o{" : "||--||"
-    lines.push(`    ${r.from.toUpperCase()} ${rel} ${r.to.toUpperCase()} : relates`)
+    const from = (r as any).from || (r as any).from_entity || "UNKNOWN_FROM"
+    const to = (r as any).to || (r as any).to_entity || "UNKNOWN_TO"
+    lines.push(`    ${from.toUpperCase()} ${rel} ${to.toUpperCase()} : relates`)
   })
 
-  // Add entities
-  ;(erd_json.entities || []).forEach((entity) => {
+  // Entity rendering stays the same
+  erd_json.entities?.forEach((entity) => {
     lines.push(`    ${entity.name.toUpperCase()} {`)
     const attrs = entity.attributes || entity.columns || []
     attrs.forEach((attr) => {
@@ -454,6 +483,7 @@ function generateMermaid(erd_json: ERDData | undefined): string {
 
   return lines.join("\n")
 }
+
 
 export default function ERDGenerator() {
   const [formData, setFormData] = useState<{
@@ -474,6 +504,18 @@ export default function ERDGenerator() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [jsonCollapsed, setJsonCollapsed] = useState(true)
+  
+  // New state for DDL and synthetic data
+  const [ddl, setDdl] = useState<string | null>(null)
+  const [ddlLoading, setDdlLoading] = useState(false)
+  const [ddlError, setDdlError] = useState<string | null>(null)
+  const [dbType, setDbType] = useState<string>("postgresql")
+  
+  const [syntheticData, setSyntheticData] = useState<string | null>(null)
+  const [syntheticDataLoading, setSyntheticDataLoading] = useState(false)
+  const [syntheticDataError, setSyntheticDataError] = useState<string | null>(null)
+  const [numRows, setNumRows] = useState<number>(100)
+  const [dataFormat, setDataFormat] = useState<string>("json")
 
   // Add this after the useState declarations, before the handleInputChange function
   useEffect(() => {
@@ -516,17 +558,21 @@ export default function ERDGenerator() {
       }
 
       // Make POST request to /generate-erd
-      const apiResponse = await fetch("http://localhost:8000/generate-erd", {
+      const apiResponse = await fetch("http://127.0.0.1:8000/generate-erd", {
         method: "POST",
         body: formDataToSend,
       })
 
-      if (!apiResponse.ok) {
-        const errorData = await apiResponse.json().catch(() => ({}))
-        throw new Error(errorData.message || `HTTP error! status: ${apiResponse.status}`)
+      const responseData = await apiResponse.json()
+
+      // Check if the response indicates success
+      if (!responseData.success) {
+        throw new Error(responseData.error || `HTTP error! status: ${apiResponse.status}`)
       }
 
-      const responseData = await apiResponse.json()
+      if (!apiResponse.ok) {
+        throw new Error(responseData.error || `HTTP error! status: ${apiResponse.status}`)
+      }
 
       // Enhanced debugging
       console.log("=== API RESPONSE DEBUG ===")
@@ -551,6 +597,121 @@ export default function ERDGenerator() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Function to generate DDL
+  const handleGenerateDDL = async () => {
+    if (!response?.erd_json) {
+      setDdlError("Please generate an ERD first")
+      return
+    }
+    
+    setDdlLoading(true)
+    setDdlError(null)
+    
+    try {
+      const apiResponse = await fetch("http://127.0.0.1:8000/generate-ddl", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          erd_json: response.erd_json,
+          db_type: dbType,
+        }),
+      })
+      
+      if (!apiResponse.ok) {
+        const errorData = await apiResponse.json().catch(() => ({}))
+        throw new Error(errorData.error || `HTTP error! status: ${apiResponse.status}`)
+      }
+      
+      const responseData = await apiResponse.json()
+      if (responseData.success) {
+        setDdl(responseData.ddl)
+      } else {
+        throw new Error(responseData.error || "Failed to generate DDL")
+      }
+    } catch (error) {
+      console.error("Error generating DDL:", error)
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred"
+      setDdlError(errorMessage)
+    } finally {
+      setDdlLoading(false)
+    }
+  }
+
+  // Function to generate synthetic data
+  const handleGenerateSyntheticData = async () => {
+    if (!response?.erd_json) {
+      setSyntheticDataError("Please generate an ERD first")
+      return
+    }
+    
+    setSyntheticDataLoading(true)
+    setSyntheticDataError(null)
+    
+    try {
+      const apiResponse = await fetch("http://127.0.0.1:8000/generate-synthetic-data", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          erd_json: response.erd_json,
+          num_rows: numRows,
+          format: dataFormat,
+        }),
+      })
+      
+      if (!apiResponse.ok) {
+        const errorData = await apiResponse.json().catch(() => ({}))
+        throw new Error(errorData.error || `HTTP error! status: ${apiResponse.status}`)
+      }
+      
+      const responseData = await apiResponse.json()
+      if (responseData.success) {
+        setSyntheticData(responseData.data)
+      } else {
+        throw new Error(responseData.error || "Failed to generate synthetic data")
+      }
+    } catch (error) {
+      console.error("Error generating synthetic data:", error)
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred"
+      setSyntheticDataError(errorMessage)
+    } finally {
+      setSyntheticDataLoading(false)
+    }
+  }
+
+  // Function to download DDL
+  const handleDownloadDDL = () => {
+    if (!ddl) return
+    const blob = new Blob([ddl], { type: "text/sql" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `ddl_${dbType}.sql`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  // Function to download synthetic data
+  const handleDownloadSyntheticData = () => {
+    if (!syntheticData) return
+    const extension = dataFormat === "json" ? "json" : dataFormat === "csv" ? "csv" : "sql"
+    const mimeType = dataFormat === "json" ? "application/json" : dataFormat === "csv" ? "text/csv" : "text/sql"
+    const blob = new Blob([syntheticData], { type: mimeType })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `synthetic_data.${extension}`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   }
 
   const mermaidCode = response?.erd_json ? generateMermaid(response.erd_json) : ""
@@ -850,6 +1011,194 @@ export default function ERDGenerator() {
             )}
           </CardContent>
         </Card>
+
+        {/* DDL Generation Section */}
+        {response?.erd_json && (
+          <Card className="shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-teal-600 to-teal-700 text-white rounded-t-lg">
+              <CardTitle className="flex items-center gap-2">
+                <Code className="w-5 h-5" />
+                Generate DDL (Data Definition Language)
+              </CardTitle>
+              <CardDescription className="text-teal-100">
+                Generate SQL DDL statements to create database tables based on your ERD
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              {/* Database Type Selection */}
+              <div className="flex items-center gap-4">
+                <Label htmlFor="db_type" className="text-sm font-medium w-32">
+                  Database Type:
+                </Label>
+                <Select value={dbType} onValueChange={setDbType}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="postgresql">PostgreSQL</SelectItem>
+                    <SelectItem value="mysql">MySQL</SelectItem>
+                    <SelectItem value="sqlite">SQLite</SelectItem>
+                    <SelectItem value="oracle">Oracle</SelectItem>
+                    <SelectItem value="mssql">SQL Server</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  onClick={handleGenerateDDL}
+                  disabled={ddlLoading}
+                  className="bg-teal-600 hover:bg-teal-700"
+                >
+                  {ddlLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    "Generate DDL"
+                  )}
+                </Button>
+                {ddl && (
+                  <Button
+                    onClick={handleDownloadDDL}
+                    variant="outline"
+                    className="ml-auto"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download
+                  </Button>
+                )}
+              </div>
+
+              {/* DDL Error Display */}
+              {ddlError && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-center gap-2 text-red-700">
+                    <AlertCircle className="w-5 h-5" />
+                    <span className="font-semibold">Error:</span>
+                    <span>{ddlError}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* DDL Display */}
+              {ddl ? (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Generated DDL:</Label>
+                  <pre className="bg-slate-100 p-4 rounded-lg text-xs overflow-auto max-h-96 border border-slate-300">
+                    <code>{ddl}</code>
+                  </pre>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-slate-500">
+                  <Code className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+                  <p className="text-sm">Click "Generate DDL" to create SQL statements</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Synthetic Data Generation Section */}
+        {response?.erd_json && (
+          <Card className="shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-amber-600 to-amber-700 text-white rounded-t-lg">
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5" />
+                Generate Synthetic Dataset
+              </CardTitle>
+              <CardDescription className="text-amber-100">
+                Generate realistic synthetic data based on your ERD structure
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              {/* Configuration Options */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="num_rows" className="text-sm font-medium">
+                    Number of Rows (per table):
+                  </Label>
+                  <Input
+                    id="num_rows"
+                    type="number"
+                    min="1"
+                    max="10000"
+                    value={numRows}
+                    onChange={(e) => setNumRows(parseInt(e.target.value) || 100)}
+                    className="w-full"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="data_format" className="text-sm font-medium">
+                    Output Format:
+                  </Label>
+                  <Select value={dataFormat} onValueChange={setDataFormat}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="json">JSON</SelectItem>
+                      <SelectItem value="csv">CSV</SelectItem>
+                      <SelectItem value="sql">SQL (INSERT statements)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Generate Button */}
+              <div className="flex items-center gap-4">
+                <Button
+                  onClick={handleGenerateSyntheticData}
+                  disabled={syntheticDataLoading}
+                  className="bg-amber-600 hover:bg-amber-700"
+                >
+                  {syntheticDataLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    "Generate Synthetic Data"
+                  )}
+                </Button>
+                {syntheticData && (
+                  <Button
+                    onClick={handleDownloadSyntheticData}
+                    variant="outline"
+                    className="ml-auto"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download
+                  </Button>
+                )}
+              </div>
+
+              {/* Synthetic Data Error Display */}
+              {syntheticDataError && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-center gap-2 text-red-700">
+                    <AlertCircle className="w-5 h-5" />
+                    <span className="font-semibold">Error:</span>
+                    <span>{syntheticDataError}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Synthetic Data Display */}
+              {syntheticData ? (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Generated Synthetic Data:</Label>
+                  <pre className="bg-slate-100 p-4 rounded-lg text-xs overflow-auto max-h-96 border border-slate-300">
+                    <code>{syntheticData}</code>
+                  </pre>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-slate-500">
+                  <BarChart3 className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+                  <p className="text-sm">Click "Generate Synthetic Data" to create sample data</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   )

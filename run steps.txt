@@ -1,0 +1,15 @@
+backend
+virtualenv venv
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
+.\venv\Scripts\activate
+uvicorn app.main:app --reload
+venv\Scripts\python.exe -m uvicorn app.main:app --reload
+
+
+frontend
+npm run dev 
+
+Create a data model on manual journal entries which are risky based on debit amount/credit amount of 999999
+
+create a data model for SAP to find fraudulent manual journal entries use technical table names as maintained in SAP ERP while generating the data model in the ERD
+

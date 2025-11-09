@@ -1,0 +1,222 @@
+1. BKPF – Accounting Document Header
+Description: Stores header-level info for each posted FI document.
+Fields:
+
+Field	Description
+BUKRS	Company Code
+BELNR	Document Number
+GJAHR	Fiscal Year
+BLART	Document Type
+BLDAT	Document Date
+BUDAT	Posting Date
+MONAT	Posting Period
+USNAM	User Name who posted the document
+TCODE	Transaction Code used
+
+2. BSEG – Accounting Document Segment
+Description: Holds individual line-item data for each FI document.
+Fields:
+
+Field	Description
+BUZEI	Line Item in Document
+SHKZG	Debit/Credit Indicator
+DMBTR	Amount in Document Currency
+WRBTR	Amount in Foreign Currency
+KUNNR	Customer Number (if applicable)
+LIFNR	Vendor Number (if applicable)
+HKONT	G/L Account
+
+3. SKA1 – G/L Account Master (Chart of Accounts)
+Description: Defines G/L accounts at the chart level.
+Fields:
+
+Field	Description
+SAKNR	G/L Account Number
+KTOPL	Chart of Accounts
+TXT20	Short Text Description
+TXT50	Long Text Description
+XLOEV	Deletion Flag
+
+4. SKB1 – G/L Account Master (Company Code)
+Description: Company-code-specific settings for G/L accounts.
+Fields:
+
+Field	Description
+WAERS	Currency
+XINTB	Indicator: Post Only Automatically
+
+5. GLT0 – G/L Account Totals
+Description: Summarized G/L balances by period.
+Fields:
+
+Field	Description
+HSLVT	Period Balances
+
+6. FAGLFLEXA – General Ledger: Actual Line Items
+Description: New G/L line item table (Universal Journal).
+Fields:
+
+Field	Description
+RLDNR	Ledger ID
+RACCT	G/L Account
+PRCTR	Profit Center
+SEGMENT	Segment (for new CO separation)
+
+7. LFA1 – Vendor Master (General)
+Description: Basic vendor data (valid across company codes).
+Fields:
+
+Field	Description
+NAME1	Vendor Name
+LAND1	Country
+STCD1	Tax Number
+
+8. LFB1 – Vendor Master (Company Code)
+Description: Vendor-company-code-specific info.
+Fields:
+
+Field	Description
+ZTERM	Payment Terms
+AKONT	Reconciliation G/L Account
+
+9. BSIK / BSAK – Vendor Open/Cleared Items
+Description: Secondary index for vendor line-items.
+Fields:
+
+Field	Description
+AUGBL	Clearing Document Number
+
+10. KNA1 – Customer Master (General)
+Description: Basic customer data used across company codes.
+Fields:
+
+Field	Description
+NAME1	Customer Name
+LAND1	Country
+STCD1	Tax Number
+
+11. KNB1 – Customer Master (Company Code)
+Description: Customer-company-code-specific data.
+Fields:
+
+Field	Description
+ZTERM	Payment Terms
+AKONT	Reconciliation G/L Account
+
+12. BSID / BSAD – Customer Open/Cleared Items
+Description: Secondary index table for customer postings.
+Fields: Similar to BSIK/BSAK.
+
+13. ANLA – Asset Master (General)
+Description: Main header info for each asset.
+Fields:
+
+Field	Description
+ANLKL	Asset Class
+ORD41	Cost Center assignment
+
+14. ANLB – Asset Depreciation Terms
+Description: Defines depreciation settings per asset.
+Fields:
+
+Field	Description
+AFABE	Depreciation Area
+NDJAR	Useful Life in Years
+
+15. ANLC – Asset Value Fields
+Description: Periodic values like acquisition or net book.
+Fields:
+
+Field	Description
+KANSW	Acquisition Value
+
+16. ANEK – Asset Document Header
+Description: Header data of AA postings.
+Fields:
+
+Field	Description
+BELNR	Asset Document Number
+
+17. ANEP – Asset Document Items
+Description: Line-level details for AA transactions.
+Fields:
+
+Field	Description
+ANBTR	Amount
+
+18. CSKS – Cost Center Master
+Description: Master data for cost centers.
+Fields:
+
+Field	Description
+NAME	Cost Center Name
+VERAK	Responsible Person
+
+19. COSS – Cost Totals for Internal Postings
+Description: CO posting totals aggregated by period.
+Fields:
+
+Field	Description
+WRTTP	Value Type Group Identifier
+
+20. COEP – CO Line Items
+Description: Line-level internal CO postings.
+Fields: Cost Center (KOSTL), Cost Element (KSTAR), Period, Amount (WERT)
+
+21. CE1xxxx – CO-PA: Actual Line Items
+Description: Profitability Analysis postings.
+Fields: PAOBJNR, FISCYEAR, Value Fields (e.g., VALUE01)
+
+22. SKAT – G/L Text/Descriptions
+Description: Descriptions for G/L accounts.
+Fields: SPRAS (language), LTEXT (description)
+
+23. FDSB – Cash Management: Planning Levels
+Description: Used to plan cash flows by bank.
+Fields: House Bank, Value Date (VALUT)
+
+24. FDTA – Cash Management: Value Date Details
+Description: Payment execution date settings.
+Fields: ZLSCH (Payment Method)
+
+25. TCURR – Exchange Rates
+Description: Currency conversion data.
+Fields:
+
+Field	Description
+FCURR	From Currency
+TCURR	To Currency
+GDATU	Effective Date
+UKURS	Exchange Rate
+
+26. TCURM – Currency Rounding Rules
+Description: Rounding conventions for currencies.
+Fields: DECIMALS, ROUNDRULE
+
+27. T007S – Tax Codes
+Description: Defines tax categories and defaults.
+Fields: MWSKZ (tax code), KALSM (calculation method)
+
+28. T059P – Withholding Tax Types
+Description: Config for withholding tax.
+Fields: WT_WITHCD (WT code), WT_QBSHB (amount)
+
+29. WITH_ITEM – Withholding Tax Item Data
+Description: WT details at the line-item level.
+Fields: Base (WT_QSSHB), Amount (WT_QBSHB)
+
+30. RFBLG – Line Item Display
+Description: Helps display accounting line item lists.
+Fields: TCODE (orig transaction code)
+
+31. FAGLFLEXT – G/L Totals by Period
+Description: Totals for General Ledger reporting.
+Fields: HSLVT-like balancing fields
+
+32. GLFUNCT – Special Ledger: Functional Areas
+Description: Text descriptions for functional area IDs.
+Fields: FKBER, VTEXT
+
+33. FAGLBSAS – SL Totals Reporting
+Description: Summed balances for special ledger reporting.
+Fields: HSL01 – HSL16 as period sums
